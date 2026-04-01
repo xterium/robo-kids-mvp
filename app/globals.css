@@ -469,6 +469,34 @@ button, input, textarea { font: inherit; }
 .micIcon { font-size: 48px; line-height: 1; }
 .micLabel { font-size: 13px; color: var(--muted); text-align: center; }
 
+.listenBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 24px;
+  border-radius: 50px;
+  border: 2px solid var(--success);
+  background: rgba(126, 242, 159, 0.12);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+.listenBtn span:first-child { font-size: 28px; }
+.listenBtn:active { transform: scale(0.96); }
+
+.listenPulse {
+  animation: listenGlow 1.2s ease-in-out infinite;
+}
+
+@keyframes listenGlow {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(126, 242, 159, 0.15); }
+  50%       { box-shadow: 0 0 0 14px rgba(126, 242, 159, 0.07), 0 0 30px rgba(126, 242, 159, 0.35); }
+}
+
 .resetBtn { font-size: 14px; padding: 10px 20px; }
 
 .transcriptPreview {

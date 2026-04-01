@@ -121,6 +121,7 @@ export function RoboApp() {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [childProfile, setChildProfile] = useState<ChildProfile>({});
+  const [hasNewReply, setHasNewReply] = useState(false);
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
@@ -244,6 +245,7 @@ export function RoboApp() {
 
       const updatedMessages: ChatMessage[] = [...nextMessages, { role: 'robot', text: reply }];
       setMessages(updatedMessages);
+      setHasNewReply(true);
 
       // Merge any newly learned profile facts
       if (data.profileUpdate && Object.keys(data.profileUpdate).length > 0) {
@@ -425,7 +427,17 @@ export function RoboApp() {
 
             <div className="micWrap">
               <button
-                className={`micBtn ${listening ? 'micActive' : ''} ${loading ? 'micDisabled' : ''}`}
+                className={`listenBtn ${hasNewReply ? 'listenPulse' : ''}`}
+                type="button"
+                onClick={() => { speak(lastRobotMessage); setHasNewReply(false); }}
+                aria-label={t.speakBtn}
+              >
+                <span>🔊</span>
+                <span>{t.speakBtn}</span>
+              </button>
+
+              <button
+                className={`micBtn ${listening ? 'micActive' : ''} ${loading ? 'micDisabled' : ''}`}}
                 type="button"
                 onPointerDown={startListening}
                 onPointerUp={stopListening}
