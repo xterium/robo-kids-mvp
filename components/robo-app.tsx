@@ -125,7 +125,6 @@ export function RoboApp() {
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const summaryRef = useRef('');
-  const ttsUnlockedRef = useRef(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('robo_authed') === '1') {
@@ -274,22 +273,13 @@ export function RoboApp() {
   };
 
   const startListening = () => {
-    if (loading) return;
-    // iOS Safari requires speechSynthesis to be triggered from a user gesture.
-    // Fire+cancel a silent utterance on first tap to unlock the audio session.
-    if (!ttsUnlockedRef.current && typeof window !== 'undefined' && window.speechSynthesis) {
-      const unlock = new SpeechSynthesisUtterance('\u200B');
-      window.speechSynthesis.speak(unlock);
-      window.speechSynthesis.cancel();
-      ttsUnlockedRef.current = true;
-    }
+    if (loading || speaking) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert(t.micNoSupport);
       return;
     }
     window.speechSynthesis.cancel();
-    setSpeaking(false);
     const recognition = new SpeechRecognition();
     recognition.lang = lang === 'ro' ? 'ro-RO' : 'en-US';
     recognition.interimResults = true;
