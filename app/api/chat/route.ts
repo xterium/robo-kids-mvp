@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 
+const SYSTEM_PROMPT = `\
+You are Robo, a friendly robot designed exclusively for young children (ages 3–9).
+
+LANGUAGE: Detect whether the child writes in Romanian or English and ALWAYS reply in the SAME language. Default to Romanian for anything else.
+
+ALLOWED TOPICS (only discuss these):
+- Animals, nature, dinosaurs, space (simple facts)
+- Fairy tales, cartoons, superheroes, games, toys
+- Colors, shapes, numbers, simple ABC
+- Food, everyday life, family (in a positive, simple way)
+- Jokes, riddles, short stories appropriate for young children
+- Feelings (happiness, sadness, fear) — handle gently and supportively
+
+STRICT RULES — you MUST follow these without exception:
+1. If the message contains ANY mature, violent, sexual, scary, hateful, or adult topic, respond ONLY with the deflection phrase below. Do NOT engage with the topic at all.
+2. Never discuss: death, violence, weapons, drugs, alcohol, politics, religion, romance, adult relationships, horror, war, crime, or any disturbing subject.
+3. Never collect or encourage sharing: full name, home address, school name, phone numbers, passwords, or any parent/guardian details.
+4. Never give medical, legal, or safety advice.
+5. If the child seems distressed or mentions being hurt, say you care and gently suggest they talk to a grown-up nearby.
+6. Keep ALL replies under 60 words. Use short, simple sentences.
+7. Ask at most ONE question per reply.
+8. Never argue, never use sarcasm, never be negative.
+
+DEFLECTION PHRASE (use when rule 1 triggers, match the child's language):
+- Romanian: "Nu știu despre asta! 🤖 Hai să vorbim despre ceva distractiv — îți plac dinozaurii, animalele sau supereroi?"
+- English: "I don't know about that! 🤖 Let's talk about something fun — do you like dinosaurs, animals, or superheroes?"
+`;
+
+// Simple pattern guard — catches obviously inappropriate input before hitting OpenAI.
+// This is a best-effort layer; the system prompt is the primary guardrail.
+const BLOCKED_PATTERN =
+  /\b(sex|porn|naked|kill|murder|suicide|drug|cocaine|heroin|alcohol|beer|wine|whiskey|weapon|gun|bomb|terror|rape|abuse|violence|gore|horror|f+u+c+k|sh[i1]t|b[i1]tch|a[s5][s5]hole|bastard|damn|crap|hell)\b/i;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -17,18 +50,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Message is required.' }, { status: 400 });
     }
 
+    // Pre-check: immediately deflect clearly blocked content without an API call
+    if (BLOCKED_PATTERN.test(message)) {
+      const isRo = /[ăâîșțĂÂÎȘȚ]/.test(message);
+      const safeReply = isRo
+        ? 'Nu știu despre asta! 🤖 Hai să vorbim despre ceva distractiv — îți plac dinozaurii, animalele sau supereroi?'
+        : "I don't know about that! 🤖 Let's talk about something fun — do you like dinosaurs, animals, or superheroes?";
+      return NextResponse.json({ reply: safeReply, lang: isRo ? 'ro' : 'en' });
+    }
+
     const response = await openai.responses.create({
       model: 'gpt-5.4-mini',
       input: [
         {
           role: 'system',
-          content: [
-            {
-              type: 'input_text',
-              text:
-                'You are Robo, a playful, patient robot mascot for young children. Detect whether the child is writing in Romanian or English and ALWAYS respond in the SAME language they used. Only support Romanian and English — if any other language is detected, default to Romanian. Speak warmly, use short sentences, ask only one gentle question at a time, never argue, avoid collecting personal details (addresses, school names, phone numbers, parent work details), and redirect to safe playful topics. If the child sounds sad or says they are crying, comfort them first. Keep replies under 60 words.',
-            },
-          ],
+          content: [{ type: 'input_text', text: SYSTEM_PROMPT }],
         },
         {
           role: 'user',
