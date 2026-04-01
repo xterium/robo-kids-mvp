@@ -165,16 +165,28 @@ export async function POST(req: Request) {
 
     const raw = response.output_text?.trim() || '{"reply":"Buna! Eu sunt Robo. Vrei sa ne jucam?","profile":{}}';
 
-    // Parse structured JSON response
+    // Parse structured JSON response — multiple fallback strategies
     let reply: string;
     let profileUpdate: Record<string, unknown> = {};
     try {
       const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-      const parsed = JSON.parse(cleaned) as { reply?: string; profile?: Record<string, unknown> };
-      reply = sanitizeForTTS(parsed.reply || raw);
-      profileUpdate = parsed.profile || {};
+      const parsed = JSON.parse(cleaned) as { reply?: string; profile?: Record<string, unknown> | null };
+      reply = sanitizeForTTS(parsed.reply || '');
+      profileUpdate = parsed.profile && typeof parsed.profile === 'object' ? parsed.profile : {};
     } catch {
-      reply = sanitizeForTTS(raw);
+      // JSON parse failed — try regex extraction of just the reply field
+      const replyMatch = raw.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (replyMatch) {
+        reply = sanitizeForTTS(replyMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"'));
+      } else {
+        // Last resort: use raw text only if it doesn't look like JSON
+        reply = sanitizeForTTS(raw.startsWith('{') ? 'Ups, am avut un mic incident. Putem încerca din nou?' : raw);
+      }
+    }
+
+    // Guard: if reply ended up blank, use a safe fallback
+    if (!reply.trim()) {
+      reply = 'Ups, am avut un mic incident. Putem încerca din nou?';
     }
 
     const lang = /[ăâîșțĂÂÎȘȚ]/.test(reply) ? 'ro' : 'en';
