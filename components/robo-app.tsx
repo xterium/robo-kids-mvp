@@ -303,7 +303,14 @@ export function RoboApp() {
         return prev;
       });
     };
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (e: Event & { error?: string }) => {
+      setListening(false);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        alert('Microphone permission denied. Please allow microphone access in your browser settings.');
+      }
+    };
+    // Set listening immediately — onstart may never fire on mobile browsers
+    setListening(true);
     recognition.start();
   };
 
