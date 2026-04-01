@@ -126,6 +126,7 @@ export function RoboApp() {
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const summaryRef = useRef('');
   const transcriptRef = useRef('');
+  const ttsUnlockedRef = useRef(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('robo_authed') === '1') {
@@ -284,6 +285,15 @@ export function RoboApp() {
     // On mobile, utterance.onend often never fires, leaving speaking=true forever.
     window.speechSynthesis.cancel();
     setSpeaking(false);
+    // iOS blocks speechSynthesis.speak() from async callbacks unless the audio
+    // session was activated during a user gesture. Queue a silent utterance now
+    // (inside this pointer-down handler) to unlock it for the rest of the session.
+    if (!ttsUnlockedRef.current) {
+      const unlock = new SpeechSynthesisUtterance('');
+      unlock.volume = 0;
+      window.speechSynthesis.speak(unlock);
+      ttsUnlockedRef.current = true;
+    }
     const recognition = new SpeechRecognition();
     recognition.lang = lang === 'ro' ? 'ro-RO' : 'en-US';
     recognition.interimResults = true;
