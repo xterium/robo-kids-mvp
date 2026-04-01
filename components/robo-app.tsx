@@ -273,13 +273,16 @@ export function RoboApp() {
   };
 
   const startListening = () => {
-    if (loading || speaking) return;
+    if (loading) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert(t.micNoSupport);
       return;
     }
+    // Cancel any ongoing speech and reset state immediately.
+    // On mobile, utterance.onend often never fires, leaving speaking=true forever.
     window.speechSynthesis.cancel();
+    setSpeaking(false);
     const recognition = new SpeechRecognition();
     recognition.lang = lang === 'ro' ? 'ro-RO' : 'en-US';
     recognition.interimResults = true;
