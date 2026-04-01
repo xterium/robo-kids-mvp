@@ -130,23 +130,23 @@ export async function POST(req: Request) {
     const profileCtx = buildProfileContext(childProfile ?? {});
     if (profileCtx) contextParts.push(profileCtx);
 
-    const contextMessages: { role: OAIRole; content: { type: 'input_text'; text: string }[] }[] = [];
+    const contextMessages: { role: 'user' | 'assistant'; content: string }[] = [];
     if (contextParts.length > 0) {
       contextMessages.push({
         role: 'user',
-        content: [{ type: 'input_text', text: `[Background context]\n${contextParts.join('\n\n')}` }],
+        content: `[Background context]\n${contextParts.join('\n\n')}`,
       });
       contextMessages.push({
         role: 'assistant',
-        content: [{ type: 'input_text', text: 'Understood, I have the context.' }],
+        content: 'Understood, I have the context.',
       });
     }
 
-    const historyMessages = (history ?? [])
+    const historyMessages: { role: 'user' | 'assistant'; content: string }[] = (history ?? [])
       .filter((m) => m.text?.trim())
       .map((m) => ({
-        role: (m.role === 'robot' ? 'assistant' : 'user') as OAIRole,
-        content: [{ type: 'input_text' as const, text: m.text.trim() }],
+        role: (m.role === 'robot' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: m.text.trim(),
       }));
 
     const response = await openai.responses.create({
