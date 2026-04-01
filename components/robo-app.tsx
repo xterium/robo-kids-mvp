@@ -122,6 +122,8 @@ export function RoboApp() {
   const [transcript, setTranscript] = useState('');
   const [childProfile, setChildProfile] = useState<ChildProfile>({});
   const [hasNewReply, setHasNewReply] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const chatLogRef = useRef<HTMLDivElement>(null);
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
@@ -161,6 +163,11 @@ export function RoboApp() {
   // Persist conversation log to sessionStorage on every update
   useEffect(() => {
     sessionStorage.setItem('robo_log', JSON.stringify(messages));
+  }, [messages]);
+
+  // Auto-scroll chat log to bottom
+  useEffect(() => {
+    chatLogRef.current?.scrollTo({ top: chatLogRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const exportLog = () => {
@@ -342,62 +349,87 @@ export function RoboApp() {
   }
 
   return (
-    <div className="shell">
-      <div className="hero">
-        <div className="topbar">
-          <div>
-            <div className="badge">🤖 Robo Kids MVP</div>
-          </div>
-          <button
-            className="btn langToggle"
-            type="button"
-            onClick={() => setLang((l) => l === 'ro' ? 'en' : 'ro')}
-            aria-label="Switch language"
-          >
-            {lang === 'ro' ? '🇷🇴 RO' : '🇬🇧 EN'}
-          </button>
-        </div>
+    <div className="appWrap">
+      <div className="topbar">
+        <div className="badge">🤖 Robo Kids</div>
+        <button
+          className="langToggle"
+          type="button"
+          onClick={() => setLang((l) => l === 'ro' ? 'en' : 'ro')}
+          aria-label="Switch language"
+        >
+          {lang === 'ro' ? '🇷🇴 RO' : '🇬🇧 EN'}
+        </button>
+      </div>
 
-        <div className="grid">
-          <section className="card avatarCard">
-            <div className="badge">{t.avatarBadge}</div>
-            <h1 className="h1">{t.h1}</h1>
-            <p className="sub">{t.sub}</p>
-
-            <div className="avatarWrap" aria-hidden="true">
-              <div className="robot">
-                <div className="antenna" />
-                <div className="robot-head">
-                  <div className="robot-face">
-                    <div className="eyeRow">
-                      <div className="eye" />
-                      <div className="eye" />
-                    </div>
-                    <div className={`mouth ${speaking ? 'talking' : ''}`} />
-                  </div>
+      <div className="stage">
+        <div className="avatarWrap" aria-hidden="true">
+          <div className={`robot ${speaking ? 'speaking' : ''}`}>
+            <div className="antenna" />
+            <div className="robot-head">
+              <div className="robot-face">
+                <div className="eyeRow">
+                  <div className="eye" />
+                  <div className="eye" />
                 </div>
-                <div className="robot-body">
-                  <div className="screen" />
-                </div>
+                <div className={`mouth ${speaking ? 'talking' : ''}`} />
               </div>
             </div>
-
-            <div className="controls">
-              <button className="btn btnPrimary" type="button" onClick={() => speak(lastRobotMessage)}>{t.speakBtn}</button>
-              <button className="btn btnGhost" type="button" onClick={stopSpeaking}>{t.stopBtn}</button>
+            <div className="robot-body">
+              <div className="screen" />
             </div>
+          </div>
+        </div>
 
-            <div className="helperList">
-              {t.starters.map((prompt) => (
-                <div key={prompt}>• {prompt}</div>
-              ))}
-            </div>
-          </section>
+        {loading ? (
+          <div className="speechBubble robot thinking">
+            <span className="dot" /><span className="dot" /><span className="dot" />
+          </div>
+        ) : lastRobotMessage ? (
+          <div className="speechBubble robot">{lastRobotMessage}</div>
+        ) : null}
 
-          <section className="card chatCard">
-            <div className="badge">{t.chatBadge}</div>
+        {transcript && !loading && (
+          <div className="speechBubble user">{transcript}</div>
+        )}
+      </div>
 
-            <label className="fieldLabel" htmlFor="name">{t.nickname}</label>
+      <div className="dock">
+        <button
+          className={`listenBtn ${hasNewReply && !speaking ? 'listenPulse' : ''}`}
+          type="button"
+          onClick={() => { speak(lastRobotMessage); setHasNewReply(false); }}
+          aria-label={t.speakBtn}
+          title={t.speakBtn}
+        >🔊</button>
+
+        <button
+          className={`micBtn ${listening ? 'micActive' : ''} ${loading ? 'micDisabled' : ''}`}
+          type="button"
+          onPointerDown={startListening}
+          onPointerUp={stopListening}
+          onPointerLeave={stopListening}
+          disabled={loading}
+          aria-label={listening ? t.micListening : t.micStart}
+        >
+          <span className="micIcon">{listening ? '👂' : '🎤'}</span>
+          <span className="micLabel">{loading ? t.thinking : listening ? t.micListening : t.micStart}</span>
+        </button>
+      </div>
+
+      <div className={`chatDrawer ${chatOpen ? 'open' : ''}`}>
+        <button
+          className="drawerHandle"
+          type="button"
+          onClick={() => setChatOpen((o) => !o)}
+          aria-expanded={chatOpen}
+        >
+          <span>💬 {t.chatBadge}</span>
+          <span className="drawerChevron">▲</span>
+        </button>
+        <div className="drawerBody">
+          <div className="fieldRow">
+            <label className="fieldLabel" htmlFor="name">{t.nickname}:</label>
             <input
               id="name"
               className="input"
@@ -405,67 +437,31 @@ export function RoboApp() {
               onChange={(e) => setChildName(e.target.value)}
               placeholder="Evelina"
             />
-
-            <div className="chatLog" aria-live="polite">
-              {messages.map((item, index) => (
-                <div key={`${item.role}-${index}`} className={`bubble ${item.role}`}>
-                  {item.text}
-                </div>
-              ))}
-              {loading && (
-                <div className="bubble robot thinking">
-                  <span className="dot" /><span className="dot" /><span className="dot" />
-                </div>
-              )}
-            </div>
-
-            {transcript && !loading && (
-              <p className="transcriptPreview">
-                <span className="transcriptLabel">{t.heard}</span> {transcript}
-              </p>
+          </div>
+          <div className="chatLog" ref={chatLogRef} aria-live="polite">
+            {messages.map((item, index) => (
+              <div key={`${item.role}-${index}`} className={`bubble ${item.role}`}>
+                {item.text}
+              </div>
+            ))}
+            {loading && (
+              <div className="bubble robot" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <span className="dot" /><span className="dot" /><span className="dot" />
+              </div>
             )}
-
-            <div className="micWrap">
-              <button
-                className={`listenBtn ${hasNewReply ? 'listenPulse' : ''}`}
-                type="button"
-                onClick={() => { speak(lastRobotMessage); setHasNewReply(false); }}
-                aria-label={t.speakBtn}
-              >
-                <span>🔊</span>
-                <span>{t.speakBtn}</span>
-              </button>
-
-              <button
-                className={`micBtn ${listening ? 'micActive' : ''} ${loading ? 'micDisabled' : ''}`}}
-                type="button"
-                onPointerDown={startListening}
-                onPointerUp={stopListening}
-                onPointerLeave={stopListening}
-                disabled={loading}
-                aria-label={listening ? t.micListening : t.micStart}
-              >
-                <span className="micIcon">{listening ? '👂' : '🎤'}</span>
-                <span className="micLabel">{loading ? t.thinking : listening ? t.micListening : t.micStart}</span>
-              </button>
-
-              <button
-                className="btn btnGhost resetBtn"
-                type="button"
-                onClick={() => { setMessages([{ role: 'robot', text: t.initialMsg }]); setTranscript(''); }}
-              >
-                {t.reset}
-              </button>
-
-              <button
-                className="btn btnGhost resetBtn"
-                type="button"
-                onClick={exportLog}
-              >
-                {t.exportLog}
-              </button>
-            </div>
-          </section>
+          </div>
+          <div className="drawerActions">
+            <button
+              className="btn btnGhost"
+              type="button"
+              onClick={() => { setMessages([{ role: 'robot', text: t.initialMsg }]); setTranscript(''); }}
+            >
+              {t.reset}
+            </button>
+            <button className="btn btnGhost" type="button" onClick={exportLog}>
+              {t.exportLog}
+            </button>
+          </div>
         </div>
       </div>
     </div>
