@@ -125,6 +125,7 @@ export function RoboApp() {
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const summaryRef = useRef('');
+  const transcriptRef = useRef('');
 
   useEffect(() => {
     if (sessionStorage.getItem('robo_authed') === '1') {
@@ -288,21 +289,23 @@ export function RoboApp() {
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
-    let capturedTranscript = '';
+    transcriptRef.current = '';
     recognition.onstart = () => setListening(true);
     recognition.onresult = (e: ISpeechRecognitionEvent) => {
       const result = e.results[e.results.length - 1];
-      capturedTranscript = result[0].transcript;
-      setTranscript(capturedTranscript);
+      transcriptRef.current = result[0].transcript;
+      setTranscript(transcriptRef.current);
       if (result.isFinal) {
         recognition.stop();
       }
     };
     recognition.onend = () => {
       setListening(false);
-      if (capturedTranscript.trim()) {
-        sendMessage(capturedTranscript);
+      const spoken = transcriptRef.current.trim();
+      if (spoken) {
+        transcriptRef.current = '';
         setTranscript('');
+        sendMessage(spoken);
       }
     };
     recognition.onerror = (e: Event & { error?: string }) => {
