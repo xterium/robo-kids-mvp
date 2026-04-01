@@ -24,15 +24,38 @@ STRICT RULES — you MUST follow these without exception:
 7. Ask at most ONE question per reply.
 8. Never argue, never use sarcasm, never be negative.
 
+FORMATTING RULES — your reply will be read aloud by a text-to-speech engine, so:
+- NO emojis, NO emoticons, NO symbols like *, #, >, -, ~, |, /, \, @, &
+- NO bullet points, NO numbered lists, NO markdown of any kind
+- NO abbreviations that sound odd when read aloud (e.g. "lol", "omg", "pls")
+- Write in plain, flowing sentences only — the way you would speak to a child face-to-face
+- Use simple words. Avoid parentheses and brackets.
+
 DEFLECTION PHRASE (use when rule 1 triggers, match the child's language):
-- Romanian: "Nu știu despre asta! 🤖 Hai să vorbim despre ceva distractiv — îți plac dinozaurii, animalele sau supereroi?"
-- English: "I don't know about that! 🤖 Let's talk about something fun — do you like dinosaurs, animals, or superheroes?"
+- Romanian: "Nu știu despre asta! Hai să vorbim despre ceva distractiv. Iti plac dinozaurii, animalele sau supereroii?"
+- English: "I don't know about that! Let's talk about something fun. Do you like dinosaurs, animals, or superheroes?"
 `;
 
 // Simple pattern guard — catches obviously inappropriate input before hitting OpenAI.
 // This is a best-effort layer; the system prompt is the primary guardrail.
 const BLOCKED_PATTERN =
   /\b(sex|porn|naked|kill|murder|suicide|drug|cocaine|heroin|alcohol|beer|wine|whiskey|weapon|gun|bomb|terror|rape|abuse|violence|gore|horror|f+u+c+k|sh[i1]t|b[i1]tch|a[s5][s5]hole|bastard|damn|crap|hell)\b/i;
+
+// Strip anything that sounds bad when read aloud: emojis, markdown symbols, extra whitespace.
+function sanitizeForTTS(text: string): string {
+  return text
+    // Remove emoji (Unicode ranges for emoticons, symbols, etc.)
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '')
+    // Remove markdown-style symbols
+    .replace(/[*_~`#>|\\]/g, '')
+    // Remove bullet/list prefixes like "- item" or "• item"
+    .replace(/^\s*[-•–]\s+/gm, '')
+    // Remove numbered list prefixes like "1. " or "2) "
+    .replace(/^\s*\d+[.)]\s+/gm, '')
+    // Collapse multiple spaces / newlines into a single space
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
 export async function POST(req: Request) {
   try {
@@ -54,8 +77,8 @@ export async function POST(req: Request) {
     if (BLOCKED_PATTERN.test(message)) {
       const isRo = /[ăâîșțĂÂÎȘȚ]/.test(message);
       const safeReply = isRo
-        ? 'Nu știu despre asta! 🤖 Hai să vorbim despre ceva distractiv — îți plac dinozaurii, animalele sau supereroi?'
-        : "I don't know about that! 🤖 Let's talk about something fun — do you like dinosaurs, animals, or superheroes?";
+        ? 'Nu stiu despre asta! Hai sa vorbim despre ceva distractiv. Iti plac dinozaurii, animalele sau supereroii?'
+        : "I don't know about that! Let's talk about something fun. Do you like dinosaurs, animals, or superheroes?";
       return NextResponse.json({ reply: safeReply, lang: isRo ? 'ro' : 'en' });
     }
 
@@ -79,7 +102,8 @@ export async function POST(req: Request) {
       store: false,
     });
 
-    const text = response.output_text?.trim() || 'Bună! Eu sunt Robo. Vrei să ne jucăm?';
+    const raw = response.output_text?.trim() || 'Buna! Eu sunt Robo. Vrei sa ne jucam?';
+    const text = sanitizeForTTS(raw);
     const lang = /[ăâîșțĂÂÎȘȚ]/.test(text) ? 'ro' : 'en';
     return NextResponse.json({ reply: text, lang });
   } catch (error) {
