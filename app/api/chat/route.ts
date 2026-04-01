@@ -60,7 +60,11 @@ function sanitizeForTTS(text: string): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, message } = body as { name?: string; message?: string };
+    const { name, message, history } = body as {
+      name?: string;
+      message?: string;
+      history?: { role: 'user' | 'robot'; text: string }[];
+    };
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
@@ -82,6 +86,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ reply: safeReply, lang: isRo ? 'ro' : 'en' });
     }
 
+    // Build conversation history for context (skip the initial robot greeting at index 0)
+    type OAIRole = 'user' | 'assistant';
+    const historyMessages = (history ?? [])
+      .filter((m) => m.text?.trim())
+      .map((m) => ({
+        role: (m.role === 'robot' ? 'assistant' : 'user') as OAIRole,
+        content: [{ type: 'input_text' as const, text: m.text.trim() }],
+      }));
+
     const response = await openai.responses.create({
       model: 'gpt-5.4-mini',
       input: [
@@ -89,6 +102,7 @@ export async function POST(req: Request) {
           role: 'system',
           content: [{ type: 'input_text', text: SYSTEM_PROMPT }],
         },
+        ...historyMessages,
         {
           role: 'user',
           content: [

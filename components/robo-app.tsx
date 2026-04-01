@@ -164,11 +164,15 @@ export function RoboApp() {
     setTranscript('');
     setLoading(true);
 
+    // Build sliding-window history: last 10 messages before the new one
+    const HISTORY_WINDOW = 10;
+    const history = messages.slice(-HISTORY_WINDOW);
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: childName, message: trimmed }),
+        body: JSON.stringify({ name: childName, message: trimmed, history }),
       });
 
       const data = (await res.json()) as { reply?: string; error?: string; lang?: Lang };
