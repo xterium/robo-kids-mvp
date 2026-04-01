@@ -178,6 +178,17 @@ export async function POST(req: Request) {
     }
 
     const lang = /[ăâîșțĂÂÎȘȚ]/.test(reply) ? 'ro' : 'en';
+
+    // Structured log for Vercel / server logs — parent can review in dashboard
+    console.log(JSON.stringify({
+      event: 'chat_exchange',
+      ts: new Date().toISOString(),
+      child: name?.trim() || 'friend',
+      userMessage: message.trim(),
+      robReply: reply,
+      lang,
+    }));
+
     return NextResponse.json({ reply, lang, profileUpdate });
   } catch (error) {
     console.error(error);

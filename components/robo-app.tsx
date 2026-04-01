@@ -78,6 +78,7 @@ const translations = {
     thinking: 'Robo se gândește…',
     heard: 'Ai spus:',
     reset: 'Resetează chat',
+    exportLog: 'Exportă conversația',
     initialMsg: 'Bună! Eu sunt Robo. Locuiesc în acest ecran. Ce jucăm azi?',
     hiccup: 'Robo a avut un mic accident. Putem încerca din nou?',
     fallback: 'Am avut un mic incident. Putem încerca din nou?',
@@ -103,6 +104,7 @@ const translations = {
     thinking: 'Robo is thinking…',
     heard: 'You said:',
     reset: 'Reset chat',
+    exportLog: 'Export conversation',
     initialMsg: 'Hello! I am Robo. I live in this screen. What should we play today?',
     hiccup: 'Robo had a tiny hiccup. Can we try again?',
     fallback: 'I had a little robot hiccup. Can you try again?',
@@ -152,6 +154,25 @@ export function RoboApp() {
     { role: 'robot', text: translations.ro.initialMsg },
   ]);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Persist conversation log to sessionStorage on every update
+  useEffect(() => {
+    sessionStorage.setItem('robo_log', JSON.stringify(messages));
+  }, [messages]);
+
+  const exportLog = () => {
+    const lines = messages.map((m) => {
+      const who = m.role === 'robot' ? 'Robo' : childName || 'Copil';
+      return `[${who}] ${m.text}`;
+    });
+    const blob = new Blob([lines.join('\n\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `robo-chat-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const t = translations[lang];
 
@@ -391,6 +412,14 @@ export function RoboApp() {
                 onClick={() => { setMessages([{ role: 'robot', text: t.initialMsg }]); setTranscript(''); }}
               >
                 {t.reset}
+              </button>
+
+              <button
+                className="btn btnGhost resetBtn"
+                type="button"
+                onClick={exportLog}
+              >
+                {t.exportLog}
               </button>
             </div>
           </section>
