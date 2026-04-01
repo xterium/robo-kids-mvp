@@ -32,7 +32,7 @@ button, input, textarea { font: inherit; }
 .shell {
   width: min(100%, 820px);
   margin: 0 auto;
-  padding: 20px 16px 32px;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .hero {
