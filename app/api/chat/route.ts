@@ -151,6 +151,7 @@ export async function POST(req: Request) {
 
     const response = await openai.responses.create({
       model: 'gpt-5.4-mini',
+      text: { format: { type: 'json_object' } },
       input: [
         { role: 'system', content: [{ type: 'input_text', text: SYSTEM_PROMPT }] },
         ...contextMessages,
