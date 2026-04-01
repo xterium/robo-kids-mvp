@@ -306,7 +306,9 @@ export function RoboApp() {
     recognition.onerror = (e: Event & { error?: string }) => {
       setListening(false);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        alert('Microphone permission denied. Please allow microphone access in your browser settings.');
+        alert(lang === 'ro'
+          ? 'Microfonul este blocat. Deschide Setări > Safari/Chrome > Microfon și permite accesul, apoi reîncarcă pagina.'
+          : 'Microphone is blocked. Go to Settings > Safari/Chrome > Microphone, allow access, then reload the page.');
       }
     };
     // Set listening immediately — onstart may never fire on mobile browsers
