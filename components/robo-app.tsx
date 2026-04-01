@@ -10,6 +10,28 @@ type ChatMessage = {
 
 type Lang = 'ro' | 'en';
 
+type ChildProfile = {
+  name?: string;
+  favoriteColor?: string;
+  favoriteAnimal?: string;
+  friendName?: string;
+  kindergarten?: string;
+  interests?: string[];
+};
+
+function mergeProfile(current: ChildProfile, update: Record<string, unknown>): ChildProfile {
+  const merged = { ...current };
+  if (update.name && typeof update.name === 'string') merged.name = update.name;
+  if (update.favoriteColor && typeof update.favoriteColor === 'string') merged.favoriteColor = update.favoriteColor;
+  if (update.favoriteAnimal && typeof update.favoriteAnimal === 'string') merged.favoriteAnimal = update.favoriteAnimal;
+  if (update.friendName && typeof update.friendName === 'string') merged.friendName = update.friendName;
+  if (update.kindergarten && typeof update.kindergarten === 'string') merged.kindergarten = update.kindergarten;
+  if (Array.isArray(update.interests) && update.interests.length > 0) {
+    merged.interests = [...new Set([...(merged.interests ?? []), ...update.interests as string[]])];
+  }
+  return merged;
+}
+
 // SpeechRecognition is not in all TS lib typings yet
 interface ISpeechRecognitionEvent {
   results: SpeechRecognitionResultList | { length: number; [index: number]: { isFinal: boolean; [index: number]: { transcript: string } } };
@@ -96,15 +118,25 @@ export function RoboApp() {
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [childProfile, setChildProfile] = useState<ChildProfile>({});
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const summaryRef = useRef('');
 
   useEffect(() => {
     if (sessionStorage.getItem('robo_authed') === '1') {
       setAuthed(true);
     }
+    try {
+      const saved = sessionStorage.getItem('robo_profile');
+      if (saved) setChildProfile(JSON.parse(saved) as ChildProfile);
+    } catch { /* ignore */ }
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('robo_profile', JSON.stringify(childProfile));
+  }, [childProfile]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -164,22 +196,54 @@ export function RoboApp() {
     setTranscript('');
     setLoading(true);
 
-    // Build sliding-window history: last 10 messages before the new one
-    const HISTORY_WINDOW = 10;
-    const history = messages.slice(-HISTORY_WINDOW);
+    // Last 8 messages as raw history; anything older is covered by the rolling summary
+    const history = messages.slice(-8);
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: childName, message: trimmed, history }),
+        body: JSON.stringify({
+          name: childName,
+          message: trimmed,
+          history,
+          summary: summaryRef.current,
+          childProfile,
+        }),
       });
 
-      const data = (await res.json()) as { reply?: string; error?: string; lang?: Lang };
+      const data = (await res.json()) as {
+        reply?: string;
+        error?: string;
+        lang?: Lang;
+        profileUpdate?: Record<string, unknown>;
+      };
       const detectedLang: Lang = data.lang ?? lang;
       setLang(detectedLang);
       const reply = data.reply?.trim() || data.error || translations[detectedLang].hiccup;
-      setMessages([...nextMessages, { role: 'robot', text: reply }]);
+
+      const updatedMessages: ChatMessage[] = [...nextMessages, { role: 'robot', text: reply }];
+      setMessages(updatedMessages);
+
+      // Merge any newly learned profile facts
+      if (data.profileUpdate && Object.keys(data.profileUpdate).length > 0) {
+        setChildProfile((prev) => mergeProfile(prev, data.profileUpdate!));
+      }
+
+      // At every 10-turn milestone, compress older messages into the rolling summary
+      const exchangeCount = updatedMessages.length - 1; // exclude initial greeting
+      if (exchangeCount > 0 && exchangeCount % 10 === 0) {
+        const toSummarize = updatedMessages.slice(0, updatedMessages.length - 8);
+        void fetch('/api/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: toSummarize, existingSummary: summaryRef.current }),
+        })
+          .then((r) => r.json())
+          .then((d: { summary?: string }) => { if (d.summary) summaryRef.current = d.summary; })
+          .catch(() => {});
+      }
+
       speak(reply, detectedLang);
     } catch {
       const fallback = t.fallback;
