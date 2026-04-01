@@ -31,11 +31,11 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
         sessionStorage.setItem('robo_authed', '1');
         onUnlock();
       } else {
-        setError(data.error || 'Wrong code. Try again.');
+        setError(data.error || 'Cod greșit. Încearcă din nou.');
         setCode('');
       }
     } catch {
-      setError('Could not connect. Try again.');
+      setError('Nu m-am putut conecta. Încearcă din nou.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
         </div>
 
         <h1 className="lockTitle">Robo Kids</h1>
-        <p className="lockSub">Enter your access code to continue.</p>
+        <p className="lockSub">Introdu codul secret pentru a continua.</p>
 
         <form onSubmit={handleSubmit} className="lockForm">
           <input
@@ -69,13 +69,13 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
             type="password"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="Access code"
+            placeholder="Cod de acces"
             autoFocus
             autoComplete="current-password"
           />
           {error && <p className="lockError">{error}</p>}
           <button className="btn btnPrimary lockBtn" type="submit" disabled={loading}>
-            {loading ? 'Checking…' : 'Unlock 🔓'}
+            {loading ? 'Se verifică…' : 'Deschide 🔓'}
           </button>
         </form>
       </div>

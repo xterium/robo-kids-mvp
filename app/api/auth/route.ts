@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ ok: false, error: 'Wrong code. Try again.' }, { status: 401 });
+    return NextResponse.json({ ok: false, error: 'Cod greșit. Încearcă din nou.' }, { status: 401 });
   } catch {
     return NextResponse.json({ ok: false, error: 'Invalid request.' }, { status: 400 });
   }
