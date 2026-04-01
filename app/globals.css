@@ -332,3 +332,71 @@ button, input, textarea { font: inherit; }
   color: var(--muted);
   font-size: 13px;
 }
+
+/* Lock screen */
+.lockShell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.lockCard {
+  width: min(100%, 380px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+  padding: 36px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.lockRobot {
+  width: min(60vw, 180px);
+  aspect-ratio: 1 / 1.08;
+  animation: floaty 3.6s ease-in-out infinite;
+}
+
+.lockTitle {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--accent);
+}
+
+.lockSub {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+  text-align: center;
+}
+
+.lockForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lockInput {
+  text-align: center;
+  font-size: 18px;
+  letter-spacing: 0.2em;
+}
+
+.lockBtn {
+  width: 100%;
+  font-size: 17px;
+}
+
+.lockError {
+  color: var(--danger);
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}

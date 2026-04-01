@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { LockScreen } from './lock-screen';
 
 type ChatMessage = {
   role: 'user' | 'robot';
@@ -14,10 +15,17 @@ const starterPrompts = [
 ];
 
 export function RoboApp() {
+  const [authed, setAuthed] = useState(false);
   const [childName, setChildName] = useState('Evelina');
   const [message, setMessage] = useState('Hi Robo! My name is Evelina.');
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('robo_authed') === '1') {
+      setAuthed(true);
+    }
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'robot',
@@ -79,6 +87,10 @@ export function RoboApp() {
       setLoading(false);
     }
   };
+
+  if (!authed) {
+    return <LockScreen onUnlock={() => setAuthed(true)} />;
+  }
 
   return (
     <div className="shell">
