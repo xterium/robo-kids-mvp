@@ -11,6 +11,10 @@ type ChatMessage = {
 type Lang = 'ro' | 'en';
 
 // SpeechRecognition is not in all TS lib typings yet
+interface ISpeechRecognitionEvent {
+  results: SpeechRecognitionResultList | { length: number; [index: number]: { isFinal: boolean; [index: number]: { transcript: string } } };
+}
+
 interface ISpeechRecognition extends EventTarget {
   lang: string;
   interimResults: boolean;
@@ -20,7 +24,7 @@ interface ISpeechRecognition extends EventTarget {
   onstart: (() => void) | null;
   onend: (() => void) | null;
   onerror: (() => void) | null;
-  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onresult: ((e: ISpeechRecognitionEvent) => void) | null;
 }
 type SpeechRecognitionCtor = new () => ISpeechRecognition;
 
@@ -196,7 +200,7 @@ export function RoboApp() {
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
     recognition.onstart = () => setListening(true);
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
+    recognition.onresult = (e: ISpeechRecognitionEvent) => {
       const result = e.results[e.results.length - 1];
       setTranscript(result[0].transcript);
       if (result.isFinal) {
