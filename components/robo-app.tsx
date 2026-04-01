@@ -288,20 +288,22 @@ export function RoboApp() {
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
+    let capturedTranscript = '';
     recognition.onstart = () => setListening(true);
     recognition.onresult = (e: ISpeechRecognitionEvent) => {
       const result = e.results[e.results.length - 1];
-      setTranscript(result[0].transcript);
+      capturedTranscript = result[0].transcript;
+      setTranscript(capturedTranscript);
       if (result.isFinal) {
         recognition.stop();
       }
     };
     recognition.onend = () => {
       setListening(false);
-      setTranscript((prev) => {
-        if (prev.trim()) sendMessage(prev);
-        return prev;
-      });
+      if (capturedTranscript.trim()) {
+        sendMessage(capturedTranscript);
+        setTranscript('');
+      }
     };
     recognition.onerror = (e: Event & { error?: string }) => {
       setListening(false);
