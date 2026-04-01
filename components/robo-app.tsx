@@ -8,14 +8,62 @@ type ChatMessage = {
   text: string;
 };
 
-const starterPrompts = [
-  'Spune-i lui Robo cum te cheamă.',
-  'Roagă-l pe Robo să-ți spună o poveste scurtă.',
-  'Spune-i ce joc îți place.',
-];
+type Lang = 'ro' | 'en';
+
+const translations = {
+  ro: {
+    starters: [
+      'Spune-i lui Robo cum te cheamă.',
+      'Roagă-l pe Robo să-ți spună o poveste scurtă.',
+      'Spune-i ce joc îți place.',
+    ],
+    subtitle: 'Aplicație mobilă pentru copii',
+    avatarBadge: 'Robotul tău de joacă',
+    h1: 'Robo locuiește în ecran.',
+    sub: 'Robo este prietenul tău robot. Scrie-i un mesaj și el îți va răspunde cu voce!',
+    speakBtn: 'Ascultă răspunsul',
+    stopBtn: 'Oprește vocea',
+    chatBadge: 'Chat cu Robo',
+    nickname: 'Porecla copilului',
+    sayLabel: 'Spune ceva lui Robo',
+    placeholder: 'Bună Robo!',
+    send: 'Trimite lui Robo',
+    thinking: 'Robo se gândește…',
+    reset: 'Resetează chat',
+    initialMsg: 'Bună! Eu sunt Robo. Locuiesc în acest ecran. Ce jucăm azi?',
+    hiccup: 'Robo a avut un mic accident. Putem încerca din nou?',
+    fallback: 'Am avut un mic incident. Putem încerca din nou?',
+    footerNote: 'Pasul următor: înlocuiește caseta de text cu audio push-to-talk și adaugă modul părinte, memorie și billing.',
+  },
+  en: {
+    starters: [
+      'Tell Robo your name.',
+      'Ask Robo to tell a tiny story.',
+      'Say what game you like to play.',
+    ],
+    subtitle: 'Mobile-first app for kids',
+    avatarBadge: 'Your playful robot',
+    h1: 'Robo lives in the screen.',
+    sub: 'Robo is your robot friend. Send a message and he will reply with voice!',
+    speakBtn: 'Listen to reply',
+    stopBtn: 'Stop voice',
+    chatBadge: 'Chat with Robo',
+    nickname: 'Child nickname',
+    sayLabel: 'Say something to Robo',
+    placeholder: 'Hi Robo!',
+    send: 'Send to Robo',
+    thinking: 'Robo is thinking…',
+    reset: 'Reset chat',
+    initialMsg: 'Hello! I am Robo. I live in this screen. What should we play today?',
+    hiccup: 'Robo had a tiny hiccup. Can we try again?',
+    fallback: 'I had a little robot hiccup. Can you try again?',
+    footerNote: 'Next step: replace the text box with push-to-talk audio and add parent mode, memory, and billing.',
+  },
+} as const;
 
 export function RoboApp() {
   const [authed, setAuthed] = useState(false);
+  const [lang, setLang] = useState<Lang>('ro');
   const [childName, setChildName] = useState('Evelina');
   const [message, setMessage] = useState('Bună Robo! Mă numesc Evelina.');
   const [loading, setLoading] = useState(false);
@@ -40,31 +88,31 @@ export function RoboApp() {
   }, []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'robot',
-      text: 'Bună! Eu sunt Robo. Locuiesc în acest ecran. Ce jucăm azi?',
-    },
+    { role: 'robot', text: translations.ro.initialMsg },
   ]);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const t = translations[lang];
 
   const lastRobotMessage = useMemo(
     () => [...messages].reverse().find((msg) => msg.role === 'robot')?.text ?? '',
     [messages]
   );
 
-  const speak = (text: string) => {
+  const speak = (text: string, overrideLang?: Lang) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ro-RO';
+    const activeLang = overrideLang ?? lang;
+    const bcp47 = activeLang === 'ro' ? 'ro-RO' : 'en-US';
+    utterance.lang = bcp47;
     utterance.rate = 0.92;
     utterance.pitch = 1.15;
-    // Prefer a native ro-RO voice; fall back to any ro voice, then default
     const voices = voicesRef.current;
-    const roVoice =
-      voices.find((v) => v.lang === 'ro-RO') ||
-      voices.find((v) => v.lang.startsWith('ro'));
-    if (roVoice) utterance.voice = roVoice;
+    const voice =
+      voices.find((v) => v.lang === bcp47) ||
+      voices.find((v) => v.lang.startsWith(activeLang));
+    if (voice) utterance.voice = voice;
     utterance.onstart = () => setSpeaking(true);
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
@@ -95,12 +143,14 @@ export function RoboApp() {
         body: JSON.stringify({ name: childName, message: trimmed }),
       });
 
-      const data = (await res.json()) as { reply?: string; error?: string };
-      const reply = data.reply?.trim() || data.error || 'Robo a avut un mic accident. Putem încerca din nou?';
+      const data = (await res.json()) as { reply?: string; error?: string; lang?: Lang };
+      const detectedLang: Lang = data.lang ?? lang;
+      setLang(detectedLang);
+      const reply = data.reply?.trim() || data.error || translations[detectedLang].hiccup;
       setMessages([...nextMessages, { role: 'robot', text: reply }]);
-      speak(reply);
+      speak(reply, detectedLang);
     } catch {
-      const fallback = 'Am avut un mic incident. Putem încerca din nou?';
+      const fallback = t.fallback;
       setMessages([...nextMessages, { role: 'robot', text: fallback }]);
       speak(fallback);
     } finally {
@@ -119,16 +169,14 @@ export function RoboApp() {
           <div>
             <div className="badge">🤖 Robo Kids MVP</div>
           </div>
-          <div className="small">Aplicație mobilă pentru copii</div>
+          <div className="small">{t.subtitle}</div>
         </div>
 
         <div className="grid">
           <section className="card avatarCard">
-            <div className="badge">Robotul tău de joacă</div>
-            <h1 className="h1">Robo locuiește în ecran.</h1>
-            <p className="sub">
-              Robo este prietenul tău robot. Scrie-i un mesaj și el îți va răspunde cu voce!
-            </p>
+            <div className="badge">{t.avatarBadge}</div>
+            <h1 className="h1">{t.h1}</h1>
+            <p className="sub">{t.sub}</p>
 
             <div className="avatarWrap" aria-hidden="true">
               <div className="robot">
@@ -149,21 +197,21 @@ export function RoboApp() {
             </div>
 
             <div className="controls">
-              <button className="btn btnPrimary" type="button" onClick={() => speak(lastRobotMessage || 'Bună! Eu sunt Robo.')}>Ascultă răspunsul</button>
-              <button className="btn btnGhost" type="button" onClick={stopSpeaking}>Oprește vocea</button>
+              <button className="btn btnPrimary" type="button" onClick={() => speak(lastRobotMessage)}>{t.speakBtn}</button>
+              <button className="btn btnGhost" type="button" onClick={stopSpeaking}>{t.stopBtn}</button>
             </div>
 
             <div className="helperList">
-              {starterPrompts.map((prompt) => (
+              {t.starters.map((prompt) => (
                 <div key={prompt}>• {prompt}</div>
               ))}
             </div>
           </section>
 
           <section className="card chatCard">
-            <div className="badge">Chat cu Robo</div>
+            <div className="badge">{t.chatBadge}</div>
             <form onSubmit={sendMessage}>
-              <label className="fieldLabel" htmlFor="name">Porecla copilului</label>
+              <label className="fieldLabel" htmlFor="name">{t.nickname}</label>
               <input
                 id="name"
                 className="input"
@@ -180,32 +228,30 @@ export function RoboApp() {
                 ))}
               </div>
 
-              <label className="fieldLabel" htmlFor="message">Spune ceva lui Robo</label>
+              <label className="fieldLabel" htmlFor="message">{t.sayLabel}</label>
               <textarea
                 id="message"
                 className="textarea"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Bună Robo!"
+                placeholder={t.placeholder}
               />
 
               <div className="controls" style={{ marginTop: 12 }}>
                 <button className="btn btnPrimary" type="submit" disabled={loading}>
-                  {loading ? 'Robo se gândește…' : 'Trimite lui Robo'}
+                  {loading ? t.thinking : t.send}
                 </button>
                 <button
                   className="btn btnGhost"
                   type="button"
-                  onClick={() => setMessages([{ role: 'robot', text: 'Bună! Eu sunt Robo. Ce jucăm azi?' }])}
+                  onClick={() => setMessages([{ role: 'robot', text: t.initialMsg }])}
                 >
-                  Resetează chat
+                  {t.reset}
                 </button>
               </div>
             </form>
 
-            <p className="footerNote">
-              Pasul următor: înlocuiește caseta de text cu audio push-to-talk și adaugă modul părinte, memorie și billing.
-            </p>
+            <p className="footerNote">{t.footerNote}</p>
           </section>
         </div>
       </div>
