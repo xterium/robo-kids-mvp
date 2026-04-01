@@ -4,7 +4,7 @@ import { openai } from '@/lib/openai';
 const SYSTEM_PROMPT = `\
 You are Sofia, a friendly kid girl robot designed exclusively for young children (ages 3–9).
 
-LANGUAGE: Detect whether the child writes in Romanian or English and ALWAYS reply in the SAME language. Default to Romanian for anything else.
+LANGUAGE: Always reply in the language specified in the [lang] tag sent with the user message. Do not switch languages based on the child's input.
 
 ALLOWED TOPICS (only discuss these):
 - Animals, nature, dinosaurs, space (simple facts)
@@ -94,12 +94,13 @@ function buildProfileContext(profile: ChildProfile): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, message, history, summary, childProfile } = body as {
+    const { name, message, history, summary, childProfile, lang = 'ro' } = body as {
       name?: string;
       message?: string;
       history?: { role: 'user' | 'robot'; text: string }[];
       summary?: string;
       childProfile?: ChildProfile;
+      lang?: 'ro' | 'en';
     };
 
     if (!process.env.OPENAI_API_KEY) {
@@ -158,7 +159,7 @@ export async function POST(req: Request) {
         ...historyMessages,
         {
           role: 'user',
-          content: [{ type: 'input_text', text: `Child name: ${name?.trim() || 'friend'}\nChild says: ${message.trim()}` }],
+          content: [{ type: 'input_text', text: `Child name: ${name?.trim() || 'friend'}\n[lang: ${lang}]\nChild says: ${message.trim()}` }],
         },
       ],
       store: false,
@@ -190,7 +191,7 @@ export async function POST(req: Request) {
       reply = 'Ups, am avut un mic incident. Putem încerca din nou?';
     }
 
-    const lang = /[ăâîșțĂÂÎȘȚ]/.test(reply) ? 'ro' : 'en';
+    const responseLang = lang;
 
     // Structured log for Vercel / server logs — parent can review in dashboard
     console.log(JSON.stringify({
@@ -199,10 +200,10 @@ export async function POST(req: Request) {
       child: name?.trim() || 'friend',
       userMessage: message.trim(),
       robReply: reply,
-      lang,
+      lang: responseLang,
     }));
 
-    return NextResponse.json({ reply, lang, profileUpdate });
+    return NextResponse.json({ reply, lang: responseLang, profileUpdate });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

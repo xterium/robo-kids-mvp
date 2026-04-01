@@ -229,8 +229,7 @@ export function RoboApp() {
           message: trimmed,
           history,
           summary: summaryRef.current,
-          childProfile,
-        }),
+          childProfile,          lang,        }),
       });
 
       const data = (await res.json()) as {
@@ -239,9 +238,7 @@ export function RoboApp() {
         lang?: Lang;
         profileUpdate?: Record<string, unknown>;
       };
-      const detectedLang: Lang = data.lang ?? lang;
-      setLang(detectedLang);
-      const reply = data.reply?.trim() || data.error || translations[detectedLang].hiccup;
+      const reply = data.reply?.trim() || data.error || t.hiccup;
 
       const updatedMessages: ChatMessage[] = [...nextMessages, { role: 'robot', text: reply }];
       setMessages(updatedMessages);
@@ -265,7 +262,7 @@ export function RoboApp() {
           .catch(() => {});
       }
 
-      speak(reply, detectedLang);
+      speak(reply, lang);
     } catch {
       const fallback = t.fallback;
       setMessages([...nextMessages, { role: 'robot', text: fallback }]);
@@ -322,7 +319,14 @@ export function RoboApp() {
           <div>
             <div className="badge">🤖 Robo Kids MVP</div>
           </div>
-          <div className="small">{t.subtitle} · {lang.toUpperCase()}</div>
+          <button
+            className="btn langToggle"
+            type="button"
+            onClick={() => setLang((l) => l === 'ro' ? 'en' : 'ro')}
+            aria-label="Switch language"
+          >
+            {lang === 'ro' ? '🇷🇴 RO' : '🇬🇧 EN'}
+          </button>
         </div>
 
         <div className="grid">
